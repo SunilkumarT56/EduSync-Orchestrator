@@ -32,18 +32,41 @@ const materialSchema = new Schema({
   content: mongoose.Schema.Types.Mixed, // string or buffer
 });
 
-// Schema for Gemini AI generated summaries / Notion-ready data
+// ✅ New Roadmap, KeyPoints, and Model Questions schemas
+const roadmapSchema = new Schema({
+  week: { type: Number },
+  focus: { type: String },
+  description: { type: String },
+});
+
+const modelQuestionSchema = new Schema({
+  question: { type: String },
+  type: { type: String, enum: ["short", "long", "mcq"], default: "short" },
+  options: [{ type: String }],
+  correctAnswer: { type: String },
+});
+
+const actionPlanSchema = new Schema({
+  task: { type: String },
+  priority: {
+    type: String,
+    enum: ["high", "medium", "low"],
+    default: "medium",
+  },
+});
+
+// ✅ Enhanced Gemini summary schema (production ready)
 const summarySchema = new Schema({
-  sourceFileId: { type: String }, // which file it belongs to
-  summaryText: { type: String }, // AI summarized text
-  notionJson: { type: Object }, // final structured data to send to Notion
-  modelQuestions: [
-    {
-      question: String,
-      options: [String],
-      correctAnswer: String,
-    },
-  ],
+  sourceFileId: { type: String }, // optional reference to classroom file
+  title: { type: String }, // Course or topic title
+  summaryText: { type: String }, // Raw AI-generated summary
+  roadmap: [roadmapSchema],
+  keyPoints: [{ type: String }],
+  modelQuestions: [modelQuestionSchema],
+  actionPlan: [actionPlanSchema],
+  notionJson: { type: Object }, // structured JSON for Notion
+  notionPageId: { type: String }, // page created in Notion
+  isSyncedToNotion: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
 });
 
@@ -58,7 +81,7 @@ const courseSchema = new Schema({
   courseDriveFolder: String,
   materials: [materialSchema], // Classroom uploaded files
   courseEvents: [eventSchema], // Calendar events
-  summaryData: [summarySchema], // Gemini processed output for this course
+  summaryData: [summarySchema], // Gemini processed output (now structured)
 });
 
 // User schema
@@ -72,6 +95,25 @@ const userSchema = new Schema(
     refresh_token_expires_in: { type: Number },
     expiry_date: { type: Number },
     courses: [courseSchema],
+    notion: {
+      access_token: { type: String }, // Notion user access token
+      workspace_id: { type: String },
+      bot_id: { type: String },
+      isSyncedToNotion: { type: Boolean, default: false },
+      workspace_name: { type: String },
+      parent_page_id: { type: String },
+      owner: {
+        type: { type: String }, // e.g., "user"
+        user: {
+          id: { type: String },
+          name: { type: String },
+          person: {
+            email: { type: String },
+          },
+        },
+      },
+      connected_at: { type: Date },
+    },
   },
   { timestamps: true }
 );

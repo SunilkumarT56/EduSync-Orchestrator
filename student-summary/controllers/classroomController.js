@@ -10,7 +10,7 @@ export const getClassroomCourses = async (req, res) => {
 
     // Step 2: set Google tokens
     oAuth2Client.setCredentials({
-      access_token: user.access_token,
+      access_token: user.access_token,        
       refresh_token: user.refresh_token,
       expiry_date: user.expiry_date,
     });

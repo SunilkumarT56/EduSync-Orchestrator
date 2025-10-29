@@ -3,7 +3,8 @@ import { google } from "googleapis";
 import { User } from "../models/User.js";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
-dotenv.config();
+dotenv.config();                    
+import axios from "axios";
 
 export const oAuth2 = (req, res) => {
   const scopes = [
@@ -47,8 +48,8 @@ export const googleCallback = async (req, res) => {
     console.log(email);
 
     // Prepare update object
-    const updateData = {
-      access_token: tokens.access_token,
+    const updateData = {                          
+      access_token: tokens.access_token,         // const encrypted = cryptr.encrypt(tokens.access_token);
       expiry_date: tokens.expiry_date,
       scope: tokens.scope,
       token_type: tokens.token_type,
@@ -76,7 +77,6 @@ export const googleCallback = async (req, res) => {
     const jwtToken = jwt.sign({ email: user.email }, process.env.JWT_SECRET, {
       expiresIn: "7d",
     });
-    console.log("JWT Token:", jwtToken)
 
     // Set cookie
     res.cookie("jwt", jwtToken, {
@@ -85,9 +85,65 @@ export const googleCallback = async (req, res) => {
       sameSite: "Lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-    res.redirect("http://localhost:3000/data/google-classroom");
+    res.redirect("https://untolerative-len-rumblingly.ngrok-free.dev/data/google-classroom");
   } catch (error) {
     console.error(error.message);
     res.status(500).send("OAuth failed. Check server console.");
+  }
+};
+export const notionoAuth2 = (req, res) => {
+  const authUrl = `https://api.notion.com/v1/oauth/authorize?client_id=${
+    process.env.NOTION_CLIENT_ID
+  }&response_type=code&owner=user&redirect_uri=${encodeURIComponent(
+    process.env.NOTION_REDIRECT_URL
+  )}`;
+  res.redirect(authUrl);
+};
+export const notionCallback = async (req, res) => {
+  const code = req.query.code;
+
+  try {
+    const response = await axios.post(
+      "https://api.notion.com/v1/oauth/token",
+      {
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: process.env.NOTION_REDIRECT_URL,
+      },
+      {
+        auth: {
+          username: process.env.NOTION_CLIENT_ID,
+          password: process.env.NOTION_CLIENT_SECRET,
+        },
+      }
+    );
+
+    const notionData = response.data;
+    console.log("✅ Notion OAuth Success:", notionData);
+
+    // 🔐 Assuming you already have user logged in via Google OAuth
+    const userEmail = req.user.email; // Example fallback
+    const user = await User.findOneAndUpdate(
+      { email: userEmail },
+      {
+        $set: {
+          notion: {
+            access_token: notionData.access_token,
+            workspace_id: notionData.workspace_id,
+            isSyncedToNotion: true,
+            bot_id: notionData.bot_id,
+            workspace_name: notionData.workspace_name,
+            owner: notionData.owner,
+            connected_at: new Date(),
+          },
+        },
+      },
+      { new: true, upsert: true }
+    );
+
+    res.send("✅ Notion connected successfully for " + user.email);
+  } catch (err) {
+    console.error("❌ Notion OAuth failed:", err.response?.data || err.message);
+    res.status(500).send("OAuth failed");
   }
 };

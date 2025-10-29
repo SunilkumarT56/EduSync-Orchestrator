@@ -178,6 +178,26 @@ Use the content below as reference (max 15000 characters):
 
     console.log(`✅ Completed processing ${notionResponses.length} courses`);
 
+    // Store summaries in DB
+    user.courses.forEach((course) => {
+      const found = notionResponses.find((n) => n.courseId === course.courseId);
+      if (found && found.notionData && !found.notionData.error) {
+        // Push structured Gemini response into summaryData array
+        course.summaryData.push({
+          title: found.notionData.title || course.name,
+          summaryText: found.notionData.summary || "",
+          roadmap: found.notionData.roadmap || [],
+          keyPoints: found.notionData.keyPoints || [],
+          modelQuestions: found.notionData.modelQuestions || [],
+          actionPlan: found.notionData.actionPlan || [],
+          notionJson: found.notionData,
+          isSyncedToNotion: false,
+        });
+      }
+    });
+    await user.save();
+    console.log("✅ Saved Gemini summaries into MongoDB successfully");
+
     res.status(200).json({
       message: "Gemini summarization completed successfully",
       processedCourses: notionResponses.length,

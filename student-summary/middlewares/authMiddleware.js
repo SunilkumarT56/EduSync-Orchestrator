@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 export const authMiddleware = (req, res, next) => {
-  const {token} = req.body;
+  const token = req.cookies.jwt;
   if (!token) return res.status(401).json({ message: "No token found" });
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
